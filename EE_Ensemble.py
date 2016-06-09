@@ -728,7 +728,7 @@ class Ensemble(object):
         if n_train_batches != len(train_batch_start)-1:
             print 'n_train_batches != len(train_batch_start)-1', n_train_batches, len(train_batch_start)-1
             exit(0)
-        index = T.lscalar()    # index to a [mini]batch
+        index = T.iscalar()    # index to a [mini]batch
         batch_size=T.iscalar()
         indices=T.ivector('indices')
         
@@ -773,11 +773,11 @@ class Ensemble(object):
             updates.append((param_i, param_i - learning_rate * grad_i / (T.sqrt(acc)+1e-10)))   #AdaGrad
             updates.append((acc_i, acc))  
             
-        train_model = theano.function([index, indices, batch_size], cost, updates=updates)
+        train_model = theano.function([index, indices, batch_size], cost, updates=updates, on_unused_input='ignore')
 #                                       ,
 #               givens={
 #                 indices: train_index_list[index: index + batch_size]})       
-        dev_model = theano.function([index, indices, batch_size], output)
+        dev_model = theano.function([index, indices, batch_size], output, on_unused_input='ignore')
 #         ,
 #               givens={
 #                 indices: train_index_list[index: index + batch_size]})   
