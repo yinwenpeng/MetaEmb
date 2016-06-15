@@ -631,7 +631,7 @@ class Ensemble(object):
                             print 'Training over, best word target embeddings got at train_cost:'+str(lowest_vali_loss)+' one2multiple embs stored over.'
                             exit(0)  
 
-    def one2multiple_plus(self, training_epochs=200, batch_size_freq=100, batch_size_rare=5000, learning_rate=0.001, target_embedding_size=300, L2_weight=0.5):
+    def one2multiple_plus(self, training_epochs=200, batch_size_freq=100, batch_size_rare=2000, learning_rate=0.001, target_embedding_size=300, L2_weight=0.5):
         #lbl, word2vec, Huang, glove, collobert
         word_count=len(self.word_list) # note that word_list contains overlap words in the beginning
         overlap_size=len(self.overlap_vocab)
@@ -664,7 +664,7 @@ class Ensemble(object):
             known_mat_theano=theano.shared(value=numpy.array(known_mat, dtype=theano.config.floatX), borrow=True) 
             #versions_known_embs.append(known_mat_theano)
             unknown_mat=random_value_normal((len(unknown_words_list), version.dim), theano.config.floatX, numpy.random.RandomState(4321))
-            unknown_mat_theano=theano.shared(value=unknown_mat)
+            unknown_mat_theano=theano.shared(value=unknown_mat, borrow=True)
             versions_unknown_embs.append(unknown_mat_theano) 
             #concatenate
             versions_embs.append(T.concatenate([known_mat_theano, unknown_mat_theano], axis = 0))
@@ -754,9 +754,9 @@ class Ensemble(object):
         
         
         cost_sum=cost_0*cost_bias[0]+cost_1*cost_bias[1]
-        L2_reg=(layer_0.W**2).sum()+(layer_1.W**2).sum()
+#         L2_reg=(layer_0.W**2).sum()+(layer_1.W**2).sum()
         params=layer_0.params+layer_1.params
-        cost=cost_sum+L2_weight*L2_reg
+        cost=cost_sum#+L2_weight*L2_reg
         output=input_embs
         
         self.params=params+[self.target_embs]+versions_unknown_embs
@@ -795,7 +795,8 @@ class Ensemble(object):
             epoch = epoch + 1
             #for minibatch_index in xrange(n_train_batches): # each batch
             minibatch_index=0
-            for train_i in range(len(train_batch_start)-1): # do not consider the last one
+#             for train_i in range(len(train_batch_start)-1): # do not consider the last one
+            for train_i in range(1541): # only update the freq words
                 if train_i%100==0:
                     print 'train_i:', train_i, 'len(train_batch_start):', len(train_batch_start)-1
 #             for batch_start in train_batch_start: 
@@ -806,19 +807,21 @@ class Ensemble(object):
                 average_cost_per_batch=train_model(train_batch_start[train_i], train_index_list[train_batch_start[train_i]: train_batch_start[train_i+1]], train_batch_size)
                 if iter % validation_frequency == 0:
                     print 'training @ iter = '+str(iter)+' cost: '+str(average_cost_per_batch)# +' error: '+str(error_ij)
-                    if epoch >=5:
+                    if epoch >=1:
 #                         validation_losses=[]      
                         embeddingDict={}      
-                        for train_i in range(len(train_batch_start)-1):
-#                         for batch_start in train_batch_start:
-                            batch_start=train_batch_start[train_i]
-                            batch_end=train_batch_start[train_i+1]
-                            dev_batch_size=batch_end-batch_start
-                            output_i=dev_model(batch_start, train_index_list[batch_start: batch_end], dev_batch_size)
-#                             validation_losses.append(vali_loss_i)  
-                            for row in range(batch_start, batch_end):
-                                target_embs[row]=output_i[row-batch_start]  
-                                embeddingDict[self.word_list[row]]=  target_embs[row]   
+                        for row in range(len(self.word_list)):
+                            embeddingDict[self.word_list[row]]=self.target_embs.eval()[row]
+#                         for train_i in range(len(train_batch_start)-1):
+# #                         for batch_start in train_batch_start:
+#                             batch_start=train_batch_start[train_i]
+#                             batch_end=train_batch_start[train_i+1]
+#                             dev_batch_size=batch_end-batch_start
+#                             output_i=dev_model(batch_start, train_index_list[batch_start: batch_end], dev_batch_size)
+# #                             validation_losses.append(vali_loss_i)  
+#                             for row in range(batch_start, batch_end):
+#                                 target_embs[row]=output_i[row-batch_start]  
+#                                 embeddingDict[self.word_list[row]]=  target_embs[row]   
 #                         this_validation_loss = numpy.mean(validation_losses)
                         sp=Simlex999(embeddingDict)
                         print('\t\tepoch %i, minibatch %i/%i, SimLex999 %f ' % \
